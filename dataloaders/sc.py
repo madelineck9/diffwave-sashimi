@@ -11,7 +11,6 @@ from scipy.io.wavfile import read as wavread
 
 from typing import Tuple
 
-import torchaudio
 from torch.utils.data import Dataset
 from torch import Tensor
 
@@ -36,7 +35,8 @@ def load_speechcommands_item(filepath: str, path: str):
     utterance_number = int(utterance_number)
 
     # Load audio
-    waveform, sample_rate = torchaudio.load(filepath)
+    sample_rate, data = wavread(filepath)
+    waveform = torch.from_numpy(data.astype(np.float32) / 32768.0).unsqueeze(0)
     return (fix_length(waveform, length=16000), sample_rate, label)
 
 class SpeechCommands(Dataset):
