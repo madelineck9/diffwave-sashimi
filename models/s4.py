@@ -58,40 +58,21 @@ def _broadcast_dims(*tensors):
     return tensors
 
 def cauchy_conj(v, z, w, num=2, denom=2):
-    """ Pykeops version """
-    if num == 1:
-        expr_num = 'z * ComplexReal(v) - Real2Complex(ComplexReal(v)*ComplexReal(w) + ComplexImag(v)*ComplexImag(w))'
-    elif num == 2:
-        expr_num = 'z * ComplexReal(v) - Real2Complex(Sum(v * w))'
-    else: raise NotImplementedError
+    """ Pure PyTorch version (no pykeops, which has no Windows support since it depends on the Unix-only `fcntl` module).
 
-    if denom == 1:
-        expr_denom = 'ComplexMult(z-Real2Complex(ComplexReal(w)), z-Real2Complex(ComplexReal(w))) + Real2Complex(Square(ComplexImag(w)))'
-    elif denom == 2:
-        expr_denom = 'ComplexMult(z-w, z-Conj(w))'
-    else: raise NotImplementedError
-
-    cauchy_mult = Genred(
-        f'ComplexDivide({expr_num}, {expr_denom})',
-        # expr_num,
-        # expr_denom,
-        [
-            'v = Vj(2)',
-            'z = Vi(2)',
-            'w = Vj(2)',
-        ],
-        reduction_op='Sum',
-        axis=1,
-        dtype='float32' if v.dtype == torch.cfloat else 'float64',
-    )
+    Computes, for each z, the conjugate-symmetric Cauchy sum:
+        sum_n [ v_n/(z-w_n) + conj(v_n)/(z-conj(w_n)) ]
+    which is the num=2/denom=2 pykeops formula this replaces; other num/denom variants were never used.
+    """
+    if num != 2 or denom != 2: raise NotImplementedError
 
     v, z, w = _broadcast_dims(v, z, w)
-    v = torch.view_as_real(v)
-    z = torch.view_as_real(z)
-    w = torch.view_as_real(w)
+    z = z.unsqueeze(-1)  # (..., L, 1)
+    v = v.unsqueeze(-2)  # (..., 1, N)
+    w = w.unsqueeze(-2)  # (..., 1, N)
 
-    r = 2*cauchy_mult(v, z, w, backend='GPU')
-    return torch.view_as_complex(r)
+    r = v / (z - w) + v.conj() / (z - w.conj())
+    return torch.sum(r, dim=-1)
 
 _conj = lambda x: torch.cat([x, x.conj()], dim=-1)
 
