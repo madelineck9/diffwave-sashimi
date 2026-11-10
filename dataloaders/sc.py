@@ -14,10 +14,6 @@ from typing import Tuple
 import torchaudio
 from torch.utils.data import Dataset
 from torch import Tensor
-from torchaudio.datasets.utils import (
-    download_url,
-    extract_archive,
-)
 
 HASH_DIVIDER = "_nohash_"
 EXCEPT_FOLDER = "_background_noise_"
