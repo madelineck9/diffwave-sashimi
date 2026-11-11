@@ -13,6 +13,9 @@ import hydra
 import wandb
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
+import metaxuda # experimental CUDA-compatible runtime shim for Apple Silicon, runs Numba CUDA kernels on Apple GPUs by mapping CUDA runtime calls to Apple Metal
+from numba import cuda
+import lightning
 
 # from dataset_sc import load_Speech_commands
 # from dataset_ljspeech import load_LJSpeech
@@ -23,6 +26,14 @@ from distributed_util import init_distributed, apply_gradient_allreduce, reduce_
 from generate import generate
 
 from models import construct_model
+
+# 1. Check if the Mac GPU (MPS) is available
+# if torch.backends.mps.is_available():
+#     device = torch.device("mps")
+#     print("Using Mac GPU (MPS)")
+# else:
+#     device = torch.device("cpu")
+#     print("MPS not available, falling back to CPU")
 
 def distributed_train(rank, num_gpus, group_name, cfg):
     # Initialize logger
@@ -81,6 +92,7 @@ def train(
 
     # predefine model
     net = construct_model(model_cfg).cuda()
+    # net = construct_model(model_cfg).device() # device for mps
     print_size(net, verbose=False)
 
     # apply gradient all reduce

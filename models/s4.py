@@ -8,6 +8,7 @@ from scipy import special as ss
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import pytorch_lightning
 from pytorch_lightning.utilities import rank_zero_only
 from einops import rearrange, repeat
 import opt_einsum as oe
