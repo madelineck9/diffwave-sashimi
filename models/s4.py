@@ -1146,6 +1146,20 @@ class S4(nn.Module):
         """
         u = self.input_linear(u)
         if not self.transposed: u = u.transpose(-1, -2)
+
+        # The SSM kernel and FFT convolution always run in fp32, even under bf16 autocast:
+        # cuFFT has no bf16 support, and length-16000 convolutions lose too much precision in 16-bit.
+        with torch.autocast(device_type=u.device.type, enabled=False):
+            y = self._ssm_conv(u.float(), state)
+
+        if not self.transposed: y = y.transpose(-1, -2)
+
+        y = self.output_linear(y)
+
+        return y
+
+    def _ssm_conv(self, u, state=None):
+        """ u: (B H L). Returns (B H L) after the SSM convolution, skip term, and activation. """
         L = u.size(-1)
 
         # Compute SS Kernel
@@ -1200,9 +1214,5 @@ class S4(nn.Module):
             y = hyper * y
 
         y = self.dropout(self.activation(y))
-
-        if not self.transposed: y = y.transpose(-1, -2)
-
-        y = self.output_linear(y)
 
         return y

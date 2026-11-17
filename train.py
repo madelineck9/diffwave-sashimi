@@ -53,6 +53,8 @@ def train(
     learning_rate, batch_size_per_gpu,
     # n_samples,
     name=None,
+    bf16=False,
+    tf32=False,
     # mel_path=None,
 ):
     """
@@ -68,7 +70,13 @@ def train(
     n_samples (int):                audio samples to generate and log per checkpoint
     name (str):                     prefix in front of experiment name
     mel_path (str):                 for vocoding, path to mel spectrograms (TODO generate these on the fly)
+    bf16 (bool):                    run the forward pass under bf16 autocast (S4 kernels/FFTs stay fp32)
+    tf32 (bool):                    allow TF32 tensor cores for fp32 matmuls and convolutions
     """
+
+    if tf32:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
 
     local_path, checkpoint_directory = local_directory(name, model_cfg, diffusion_cfg, dataset_cfg, 'checkpoint')
 
@@ -131,7 +139,8 @@ def train(
 
             # back-propagation
             optimizer.zero_grad()
-            loss = training_loss(net, nn.MSELoss(), audio, diffusion_hyperparams, mel_spec=mel_spectrogram)
+            with torch.autocast(device_type='cuda', dtype=torch.bfloat16, enabled=bf16):
+                loss = training_loss(net, nn.MSELoss(), audio, diffusion_hyperparams, mel_spec=mel_spectrogram)
             if num_gpus > 1:
                 reduced_loss = reduce_tensor(loss.data, num_gpus).item()
             else:

@@ -10,6 +10,8 @@ train: # Not used in generate.py
   n_iters: 1000001
   learning_rate: 2e-4
   batch_size_per_gpu: 4
+  bf16: false # bf16 autocast for dense layers (S4 kernels/FFTs stay fp32)
+  tf32: false # allow TF32 for fp32 matmuls/convolutions
 
 generate:
   ckpt_iter: max # Which checkpoint to use; assign a number or "max". Is ignored when sampling during training
